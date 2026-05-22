@@ -56,3 +56,43 @@ jobs:
             git commit -m "Build: parse Figma CSS and compile tokens"
             git push
           fi
+
+      - name: Upload generated files as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-tokens
+          path: build/generated/
+
+  push-to-phila-ui:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout phila-ui-4 (token-test branch)
+        uses: actions/checkout@v3
+        with:
+          repository: CityOfPhiladelphia/phila-ui-4
+          ref: token-test
+          token: ${{ secrets.PHILA_UI_TOKEN }}
+
+      - name: Download generated files artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-tokens
+          path: downloaded/generated/
+
+      - name: Copy generated files into phila-ui-4
+        run: |
+          mkdir -p build/generated
+          cp -r downloaded/generated/. build/generated/
+
+      - name: Commit and push to phila-ui-4
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add build/generated/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Tokens: sync generated files from token pipeline"
+            git push
+          fi
