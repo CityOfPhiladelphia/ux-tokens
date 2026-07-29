@@ -1,0 +1,15 @@
+name: GitFig Token Sync Listener
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tokens.json' # Listens only when GitFig updates this specific file
+
+jobs:
+  trigger-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log Sync Event
+        run: echo "GitFig updated tokens.json. Ready to build CSS variables."
