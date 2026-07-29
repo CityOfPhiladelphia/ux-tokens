@@ -9,6 +9,6 @@
   },
   "devDependencies": {
     "sass": "^1.85.0",
-    "style-dictionary": "^4.3.3"
+    "style-dictionary": "^5.5.0"
   }
 }
