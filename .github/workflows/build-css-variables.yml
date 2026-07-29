@@ -1,0 +1,68 @@
+name: Build CSS Variables From Tokens
+
+on:
+  workflow_run:
+    workflows: ["GitFig Token Sync Listener"]
+    types:
+      - completed
+
+jobs:
+  convert-tokens:
+    runs-on: ubuntu-latest
+    # Only execute if the previous sync run was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-node-version: '20'
+
+      - name: Generate CSS Variables File
+        run: |
+          node -e "
+          const fs = require('fs');
+          
+          // Read root tokens.json
+          const tokens = JSON.parse(fs.readFileSync('./tokens.json', 'utf8'));
+          let cssContent = ':root {\n';
+
+          // Helper function to recursively traverse JSON token nesting
+          function extractTokens(obj, prefix = '') {
+            for (const key in obj) {
+              const cleanKey = key.replace('$', ''); // Clean out W3C style token tokens if present
+              const currentKey = prefix ? \`\${prefix}-\${cleanKey}\` : cleanKey;
+              
+              if (typeof obj[key] === 'object' && obj[key] !== null) {
+                // Check if it is a flat design token value property
+                if (obj[key].value !== undefined) {
+                  cssContent += \`  --\${currentKey.toLowerCase()}: \${obj[key].value};\n\`;
+                } else {
+                  extractTokens(obj[key], currentKey);
+                }
+              } else {
+                cssContent += \`  --\${currentKey.toLowerCase()}: \${obj[key]};\n\`;
+              }
+            }
+          }
+
+          extractTokens(tokens);
+          cssContent += '}\n';
+          
+          // Write variables out to your desired stylesheet path
+          fs.writeFileSync('./variables.css', cssContent);
+          console.log('Successfully generated variables.css');
+          "
+
+      - name: Commit and Push CSS Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add variables.css
+          
+          # Only commit if changes actually exist to avoid workflow block errors
+          git diff-index --quiet HEAD || git commit -m "chore: auto-generate css variables from gitfig tokens"
+          git push
